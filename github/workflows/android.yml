@@ -1,0 +1,57 @@
+name: Crear APK Android
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/android.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Extraer proyecto
+        run: |
+          mkdir proyecto
+          unzip -q error404_android_ios_proyecto.zip -d proyecto
+          find proyecto -name package.json -print
+
+      - name: Instalar dependencias
+        working-directory: proyecto
+        run: npm install
+
+      - name: Preparar Android
+        working-directory: proyecto
+        run: |
+          if [ ! -d android ]; then
+            npx cap add android
+          fi
+          npx cap sync android
+
+      - name: Compilar APK
+        working-directory: proyecto/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Guardar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ERROR404-Android
+          path: proyecto/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
