@@ -1,1 +1,53 @@
+steps:
+  - name: Descargar repositorio
+    uses: actions/checkout@v4
 
+  - name: Preparar Java
+    uses: actions/setup-java@v4
+    with:
+      distribution: temurin
+      java-version: "17"
+
+  - name: Preparar Node.js
+    uses: actions/setup-node@v4
+    with:
+      node-version: "20"
+
+  - name: Localizar proyecto
+    run: |
+      unzip -q error404_android_ios_proyecto.zip -d proyecto
+      PKG=$(find proyecto -type f -name package.json -print -quit)
+      if [ -z "$PKG" ]; then
+        echo "No se encontró package.json"
+        find proyecto -maxdepth 5 -type f
+        exit 1
+      fi
+      DIR=$(dirname "$PKG")
+      echo "PROJECT_DIR=$DIR" >> "$GITHUB_ENV"
+      echo "Proyecto encontrado: $DIR"
+
+  - name: Instalar dependencias
+    run: |
+      cd "$PROJECT_DIR"
+      npm install
+
+  - name: Preparar Android
+    run: |
+      cd "$PROJECT_DIR"
+      if [ ! -d android ]; then
+        npx cap add android
+      fi
+      npx cap sync android
+
+  - name: Compilar APK
+    run: |
+      cd "$PROJECT_DIR/android"
+      chmod +x gradlew
+      ./gradlew assembleDebug
+
+  - name: Guardar APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: ERROR404-Android
+      path: proyecto/**/android/app/build/outputs/apk/debug/app-debug.apk
+      if-no-files-found: error
